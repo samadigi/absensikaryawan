@@ -1,0 +1,2049 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>AttendCam Pro — Sistem Absensi Karyawan Berbasis Kamera</title>
+  <meta name="theme-color" content="#2563eb" />
+  <meta name="description" content="Sistem Absensi Karyawan Modern dengan Verifikasi Kamera Real-Time" />
+
+  <!-- PWA Manifest via Data URI -->
+  <link rel="manifest" href='data:application/manifest+json,{"name":"AttendCam Pro","short_name":"AttendCam","start_url":".","display":"standalone","background_color":"#ffffff","theme_color":"#2563eb","icons":[{"src":"https://placehold.co/192x192/2563eb/ffffff?text=AC","sizes":"192x192","type":"image/png"},{"src":"https://placehold.co/512x512/2563eb/ffffff?text=AC","sizes":"512x512","type":"image/png"}]}' />
+
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+          colors: {
+            brand: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    };
+  </script>
+
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <style>
+    /* Reset & Blogger Full-Page Override */
+    html, body {
+      margin: 0 !important;
+      padding: 0 !important;
+      width: 100%;
+      min-height: 100vh;
+      background-color: #ffffff;
+      color: #0f172a;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    #app-wrapper {
+      position: relative;
+      z-index: 9999;
+      min-height: 100vh;
+      width: 100%;
+      background: #ffffff;
+    }
+
+    /* Glassmorphism Utilities */
+    .glass-panel {
+      background: rgba(255, 255, 255, 0.82);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(226, 232, 240, 0.85);
+    }
+
+    /* Hero Interactive Effects */
+    .hero-spotlight {
+      background: radial-gradient(
+        600px circle at var(--mouse-x, 50%) var(--mouse-y, 50%),
+        rgba(37, 99, 235, 0.08),
+        transparent 65%
+      );
+    }
+
+    .tilt-stage {
+      perspective: 1200px;
+    }
+
+    .tilt-card {
+      transform-style: preserve-3d;
+      transform: rotateY(var(--rx, -6deg)) rotateX(var(--ry, 4deg));
+      transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+      will-change: transform;
+    }
+
+    @media (hover: none), (prefers-reduced-motion: reduce) {
+      .tilt-card {
+        transform: none !important;
+      }
+      .parallax-item {
+        transform: none !important;
+      }
+    }
+
+    /* Double-Layer Blue Accent Outline */
+    .double-blue-outline {
+      position: relative;
+    }
+    .double-blue-outline::before {
+      content: "";
+      position: absolute;
+      inset: -8px;
+      border-radius: 1.75rem;
+      border: 1.5px solid rgba(59, 130, 246, 0.35);
+      pointer-events: none;
+    }
+    .double-blue-outline::after {
+      content: "";
+      position: absolute;
+      inset: -16px;
+      border-radius: 2.15rem;
+      border: 1px dashed rgba(37, 99, 235, 0.22);
+      pointer-events: none;
+    }
+
+    /* Continuous Moving Border Light */
+    @property --border-angle {
+      syntax: "<angle>";
+      inherits: false;
+      initial-value: 0deg;
+    }
+
+    @keyframes spinBorderLight {
+      to {
+        --border-angle: 360deg;
+      }
+    }
+
+    .moving-border-box {
+      position: relative;
+      border-radius: 1.5rem;
+      padding: 2px;
+      background: conic-gradient(
+        from var(--border-angle),
+        rgba(37, 99, 235, 0.12) 0%,
+        rgba(37, 99, 235, 0.12) 65%,
+        #3b82f6 82%,
+        #60a5fa 90%,
+        rgba(37, 99, 235, 0.12) 100%
+      );
+      animation: spinBorderLight 5s linear infinite;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      .moving-border-box {
+        animation: none;
+        background: rgba(37, 99, 235, 0.25);
+      }
+    }
+
+    /* Camera Mirror View */
+    .video-mirror {
+      transform: scaleX(-1);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #f8fafc;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+  </style>
+</head>
+<body class="antialiased selection:bg-blue-100 selection:text-blue-900">
+
+  <!-- Container Utama Full Page -->
+  <div id="app-wrapper">
+    <!-- Banner Mode Preview (Dirender dinamis hanya jika IS_PREVIEW === true) -->
+    <div id="preview-banner-slot"></div>
+
+    <!-- Notification Toast / Modal Message Box -->
+    <div id="toast-container" class="fixed top-4 right-4 z-[10050] flex flex-col gap-2 max-w-sm w-full pointer-events-none px-4 sm:px-0"></div>
+
+    <!-- Custom Confirm / Photo Viewer Modal -->
+    <div id="global-modal" class="hidden fixed inset-0 z-[10040] bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+      <div id="global-modal-content" class="bg-white rounded-2xl shadow-2xl border border-slate-200 max-w-lg w-full overflow-hidden transform transition-all"></div>
+    </div>
+
+    <!-- VIEW 1: PRE-LOGIN HERO PAGE -->
+    <section id="view-prelogin" class="min-h-screen flex flex-col justify-between bg-white relative overflow-hidden hero-spotlight">
+      <!-- Subtle Decorative Grid -->
+      <div class="absolute inset-0 bg-[linear-gradient(to_right,#f1f5f9_1px,transparent_1px),linear-gradient(to_bottom,#f1f5f9_1px,transparent_1px)] bg-[size:3.5rem_3.5rem] [mask-image:radial-gradient(ellipse_75%_65%_at_50%_40%,#000_70%,transparent_100%)] pointer-events-none"></div>
+
+      <!-- Top Navbar -->
+      <header class="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 pt-6 pb-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-lg shadow-blue-600/25">
+            <i data-lucide="scan-face" class="w-6 h-6"></i>
+          </div>
+          <div>
+            <span class="font-extrabold text-lg tracking-tight text-slate-900">AttendCam<span class="text-blue-600">.Pro</span></span>
+            <p class="text-[11px] text-slate-500 font-medium leading-none">Enterprise Attendance System</p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2 sm:gap-3">
+          <button onclick="openLoginModal('karyawan')" class="px-4 py-2.5 text-sm font-semibold text-slate-700 hover:text-blue-600 rounded-xl transition-colors">
+            Portal Karyawan
+          </button>
+          <button onclick="openLoginModal('admin')" class="px-4 py-2.5 text-sm font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-sm transition-all">
+            Admin HRD
+          </button>
+        </div>
+      </header>
+
+      <!-- Split Hero Layout -->
+      <main class="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-10 lg:py-16 grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-10 items-center">
+        <!-- Left Side: Copy & Dual Portal CTA -->
+        <div class="lg:col-span-6 space-y-6 text-center lg:text-left">
+          <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold">
+            <span class="w-2 h-2 rounded-full bg-blue-600 animate-pulse"></span>
+            Verifikasi Kamera Real-Time &amp; Timestamp Otomatis
+          </div>
+
+          <h1 class="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight leading-[1.15]">
+            Absensi Karyawan Akurat dengan <span class="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-600">Validasi Kamera</span>
+          </h1>
+
+          <p class="text-base sm:text-lg text-slate-600 max-w-xl mx-auto lg:mx-0 leading-relaxed">
+            Catat kehadiran Check-In dan Check-Out secara instan dengan bukti foto selfie terkompresi, deteksi keterlambatan otomatis, dan rekapitulasi HRD terpusat.
+          </p>
+
+          <!-- Action Buttons -->
+          <div class="pt-2 flex flex-col sm:flex-row items-stretch sm:items-center justify-center lg:justify-start gap-3.5">
+            <button onclick="openLoginModal('karyawan')" class="px-6 py-4 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-base shadow-xl shadow-blue-600/25 flex items-center justify-center gap-2.5 transition-all active:scale-[0.99]">
+              <i data-lucide="camera" class="w-5 h-5"></i>
+              <span>Masuk sebagai Karyawan</span>
+            </button>
+            <button onclick="openLoginModal('admin')" class="px-6 py-4 rounded-2xl bg-white hover:bg-slate-50 text-slate-800 border border-slate-200 font-semibold text-base shadow-sm flex items-center justify-center gap-2.5 transition-all active:scale-[0.99]">
+              <i data-lucide="shield-check" class="w-5 h-5 text-blue-600"></i>
+              <span>Masuk sebagai Admin</span>
+            </button>
+          </div>
+
+          <!-- Trust Metrics -->
+          <div class="pt-4 grid grid-cols-3 gap-4 border-t border-slate-100 max-w-md mx-auto lg:mx-0">
+            <div>
+              <p class="text-xl font-bold text-slate-900">100%</p>
+              <p class="text-xs text-slate-500">Live Capture</p>
+            </div>
+            <div>
+              <p class="text-xl font-bold text-slate-900">&lt; 1 Detik</p>
+              <p class="text-xs text-slate-500">Kompresi Foto</p>
+            </div>
+            <div>
+              <p class="text-xl font-bold text-slate-900">Real-Time</p>
+              <p class="text-xs text-slate-500">Cloud Sync</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side: Tilted Dashboard Card + Double Blue Outline + Moving Border Light + Floating Cards -->
+        <div class="lg:col-span-6 tilt-stage relative flex items-center justify-center px-2 sm:px-6">
+          <div id="hero-tilt-target" class="tilt-card w-full max-w-lg double-blue-outline">
+            <div class="moving-border-box shadow-2xl shadow-blue-900/10">
+              <div class="bg-white rounded-[1.38rem] p-5 sm:p-6 overflow-hidden">
+                <!-- Mock Header -->
+                <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+                  <div class="flex items-center gap-2.5">
+                    <div class="w-3 h-3 rounded-full bg-rose-400"></div>
+                    <div class="w-3 h-3 rounded-full bg-amber-400"></div>
+                    <div class="w-3 h-3 rounded-full bg-emerald-400"></div>
+                    <span class="ml-2 text-xs font-semibold text-slate-400">Live Attendance Monitor</span>
+                  </div>
+                  <span class="px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[11px] font-semibold flex items-center gap-1">
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span> Kamera Aktif
+                  </span>
+                </div>
+
+                <!-- Mock Camera Viewfinder -->
+                <div class="mt-4 relative rounded-2xl bg-slate-900 aspect-[16/10] overflow-hidden flex flex-col items-center justify-center text-white p-4">
+                  <div class="absolute inset-3 border-2 border-blue-400/50 rounded-xl pointer-events-none flex flex-col justify-between p-3">
+                    <div class="flex justify-between text-[10px] font-mono text-blue-200">
+                      <span>REC • VERIFIED</span>
+                      <span id="hero-live-clock">08:00:00</span>
+                    </div>
+                    <div class="mx-auto w-24 h-24 rounded-full border-2 border-dashed border-white/60 flex items-center justify-center">
+                      <i data-lucide="user-check" class="w-10 h-10 text-blue-300"></i>
+                    </div>
+                    <div class="flex justify-between items-center text-[10px] font-mono text-emerald-300">
+                      <span>STATUS: TEPAT WAKTU</span>
+                      <span>AUTO-COMPRESS</span>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Mock Summary Rows -->
+                <div class="mt-4 grid grid-cols-2 gap-3">
+                  <div class="p-3 rounded-xl bg-slate-50 border border-slate-100">
+                    <p class="text-[11px] text-slate-500 font-medium">Batas Jam Masuk</p>
+                    <p class="text-sm font-bold text-slate-900 mt-0.5">08:00 WIB</p>
+                  </div>
+                  <div class="p-3 rounded-xl bg-blue-50/70 border border-blue-100">
+                    <p class="text-[11px] text-blue-600 font-medium">Validasi Selfie</p>
+                    <p class="text-sm font-bold text-blue-900 mt-0.5">Wajib Foto Langsung</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Floating Info Card 1 (Top Right) -->
+            <div data-parallax="18" class="parallax-item hidden sm:flex items-center gap-3 glass-panel px-4 py-3 rounded-2xl shadow-lg absolute -top-6 -right-4 z-20">
+              <div class="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-600 flex items-center justify-center">
+                <i data-lucide="check-circle-2" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-slate-900">Check-In Berhasil</p>
+                <p class="text-[11px] text-slate-500">Foto &amp; Waktu Tercatat</p>
+              </div>
+            </div>
+
+            <!-- Floating Info Card 2 (Bottom Left) -->
+            <div data-parallax="-14" class="parallax-item hidden sm:flex items-center gap-3 glass-panel px-4 py-3 rounded-2xl shadow-lg absolute -bottom-5 -left-4 z-20">
+              <div class="w-9 h-9 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
+                <i data-lucide="clock" class="w-5 h-5"></i>
+              </div>
+              <div>
+                <p class="text-xs font-bold text-slate-900">Anti-Titip Absen</p>
+                <p class="text-[11px] text-slate-500">Tangkap Kamera Langsung</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Footer -->
+      <footer class="relative z-10 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-5 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-2 text-xs text-slate-500">
+        <p>&copy; 2026 AttendCam Pro. Sistem Absensi Karyawan Berbasis Kamera.</p>
+        <p>Serverless Cloud Architecture • PWA Ready</p>
+      </footer>
+    </section>
+
+    <!-- VIEW 2: LOGIN MODAL / SCREEN -->
+    <section id="view-login" class="hidden min-h-screen bg-slate-50/70 flex items-center justify-center p-4">
+      <div class="max-w-md w-full bg-white rounded-3xl shadow-xl border border-slate-200/80 p-6 sm:p-8 relative">
+        <button onclick="backToPreLogin()" class="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 mb-6 transition-colors">
+          <i data-lucide="arrow-left" class="w-4 h-4"></i> Kembali ke Beranda
+        </button>
+
+        <!-- Role Switcher Tabs -->
+        <div class="grid grid-cols-2 gap-1.5 p-1.5 bg-slate-100 rounded-2xl mb-6">
+          <button id="tab-role-karyawan" onclick="switchLoginRole('karyawan')" class="py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all">
+            Karyawan
+          </button>
+          <button id="tab-role-admin" onclick="switchLoginRole('admin')" class="py-2.5 text-xs sm:text-sm font-semibold rounded-xl transition-all">
+            Admin HRD
+          </button>
+        </div>
+
+        <!-- Form Login Karyawan -->
+        <form id="form-login-karyawan" onsubmit="handleKaryawanLogin(event)" class="space-y-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">Login Portal Karyawan</h2>
+            <p class="text-xs text-slate-500 mt-1">Masukkan ID Karyawan (NIP) dan Password Anda untuk mulai absensi.</p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">ID Karyawan / NIP</label>
+            <div class="relative">
+              <i data-lucide="id-card" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input type="text" id="login-nip" required placeholder="Contoh: EMP001" class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">Password</label>
+            <div class="relative">
+              <i data-lucide="lock" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input type="password" id="login-emp-password" required placeholder="Masukkan password" class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+          </div>
+
+          <!-- Slot Demo Hint (Hanya muncul saat IS_PREVIEW === true) -->
+          <div id="demo-hint-karyawan"></div>
+
+          <button type="submit" id="btn-submit-karyawan" class="w-full py-3.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-lg shadow-blue-600/20 transition-all flex items-center justify-center gap-2">
+            <span>Masuk ke Portal Absensi</span>
+            <i data-lucide="arrow-right" class="w-4 h-4"></i>
+          </button>
+        </form>
+
+        <!-- Form Login Admin -->
+        <form id="form-login-admin" onsubmit="handleAdminLogin(event)" class="hidden space-y-4">
+          <div>
+            <h2 class="text-xl font-bold text-slate-900">Login Administrator HRD</h2>
+            <p class="text-xs text-slate-500 mt-1">Gunakan akun Email &amp; Password Admin yang terdaftar.</p>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">Email Admin</label>
+            <div class="relative">
+              <i data-lucide="mail" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input type="email" id="login-admin-email" required placeholder="admin@perusahaan.com" class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1.5">Password</label>
+            <div class="relative">
+              <i data-lucide="key-round" class="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2"></i>
+              <input type="password" id="login-admin-password" required placeholder="••••••••" class="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+            </div>
+          </div>
+
+          <!-- Slot Demo Hint Admin (Hanya muncul saat IS_PREVIEW === true) -->
+          <div id="demo-hint-admin"></div>
+
+          <button type="submit" id="btn-submit-admin" class="w-full py-3.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-semibold text-sm shadow-lg transition-all flex items-center justify-center gap-2">
+            <span>Masuk Dashboard Admin</span>
+            <i data-lucide="shield" class="w-4 h-4"></i>
+          </button>
+        </form>
+      </div>
+    </section>
+
+    <!-- VIEW 3: PORTAL KARYAWAN -->
+    <section id="view-karyawan" class="hidden min-h-screen bg-slate-50/60 pb-24 md:pb-8">
+      <!-- Desktop Fixed Left Sidebar -->
+      <aside class="hidden md:flex fixed top-0 left-0 bottom-0 w-64 bg-white border-r border-slate-200/80 flex-col justify-between p-5 z-30">
+        <div>
+          <div class="flex items-center gap-3 pb-6 border-b border-slate-100">
+            <div class="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center">
+              <i data-lucide="scan-face" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h1 class="font-bold text-sm text-slate-900">AttendCam.Pro</h1>
+              <p class="text-[11px] text-slate-500">Portal Karyawan</p>
+            </div>
+          </div>
+
+          <nav class="mt-6 space-y-1.5">
+            <button onclick="switchKaryawanTab('kamera')" id="desk-emp-tab-kamera" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all">
+              <i data-lucide="camera" class="w-4 h-4"></i>
+              <span>Absensi Kamera</span>
+            </button>
+            <button onclick="switchKaryawanTab('riwayat')" id="desk-emp-tab-riwayat" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all">
+              <i data-lucide="history" class="w-4 h-4"></i>
+              <span>Riwayat Absensi Saya</span>
+            </button>
+          </nav>
+        </div>
+
+        <div class="pt-4 border-t border-slate-100">
+          <div class="p-3 rounded-xl bg-slate-50 mb-3">
+            <p id="desk-emp-name" class="text-xs font-bold text-slate-900 truncate">-</p>
+            <p id="desk-emp-jabatan" class="text-[11px] text-slate-500 truncate">-</p>
+          </div>
+          <button onclick="logoutUser()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors">
+            <i data-lucide="log-out" class="w-4 h-4"></i> Keluar Akun
+          </button>
+        </div>
+      </aside>
+
+      <!-- Mobile Top Bar -->
+      <header class="md:hidden sticky top-0 z-20 glass-panel border-b border-slate-200/80 px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center">
+            <i data-lucide="scan-face" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <p id="mob-emp-name" class="text-xs font-bold text-slate-900 leading-tight">-</p>
+            <p id="mob-emp-nip" class="text-[10px] text-slate-500">-</p>
+          </div>
+        </div>
+        <button onclick="logoutUser()" class="p-2 rounded-xl text-rose-600 bg-rose-50 hover:bg-rose-100" title="Keluar">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </button>
+      </header>
+
+      <!-- Main Content Karyawan -->
+      <main class="md:pl-64">
+        <div class="max-w-4xl mx-auto p-4 sm:p-6 lg:p-8">
+          <!-- TAB 1: ABSENSI KAMERA -->
+          <div id="emp-panel-kamera" class="space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+              <div>
+                <h2 class="text-lg font-bold text-slate-900">Absensi Kehadiran Kamera</h2>
+                <p id="emp-today-date-label" class="text-xs text-slate-500 mt-0.5">-</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="text-right">
+                  <p class="text-[11px] text-slate-400 font-medium">Waktu Server Lokal</p>
+                  <p id="emp-live-clock" class="text-lg font-extrabold text-blue-600 font-mono">00:00:00</p>
+                </div>
+              </div>
+            </div>
+
+            <!-- Status Hari Ini Card -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                <div>
+                  <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Check-In (Masuk)</span>
+                  <p id="emp-status-checkin-time" class="text-xl font-bold text-slate-900 mt-1">Belum Absen</p>
+                  <span id="emp-status-checkin-badge" class="inline-block mt-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">Menunggu</span>
+                </div>
+                <div class="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                  <i data-lucide="log-in" class="w-6 h-6"></i>
+                </div>
+              </div>
+
+              <div class="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                <div>
+                  <span class="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Check-Out (Pulang)</span>
+                  <p id="emp-status-checkout-time" class="text-xl font-bold text-slate-900 mt-1">Belum Absen</p>
+                  <span id="emp-status-checkout-badge" class="inline-block mt-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600">Menunggu</span>
+                </div>
+                <div class="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+                  <i data-lucide="log-out" class="w-6 h-6"></i>
+                </div>
+              </div>
+            </div>
+
+            <!-- Camera Capture Box -->
+            <div class="bg-white rounded-3xl border border-slate-200/80 shadow-sm p-5 sm:p-6">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3 class="text-sm font-bold text-slate-900">Verifikasi Wajah &amp; Lokasi Waktu</h3>
+                  <p id="emp-work-hours-info" class="text-xs text-slate-500">Batas Jam Masuk: 08:00 | Jam Pulang: 17:00</p>
+                </div>
+                <button type="button" onclick="startEmployeeCamera()" class="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-700 flex items-center gap-1.5 transition-colors">
+                  <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i> Nyalakan Ulang Kamera
+                </button>
+              </div>
+
+              <!-- Viewport Kamera -->
+              <div class="relative w-full max-w-md mx-auto aspect-[4/3] bg-slate-900 rounded-2xl overflow-hidden shadow-inner flex items-center justify-center">
+                <video id="camera-video" autoplay playsinline muted class="w-full h-full object-cover video-mirror"></video>
+                <canvas id="camera-canvas" class="hidden"></canvas>
+
+                <!-- Overlay Guide -->
+                <div id="camera-overlay-guide" class="absolute inset-0 pointer-events-none flex flex-col justify-between p-4">
+                  <div class="flex justify-between items-center">
+                    <span class="px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[11px] font-mono flex items-center gap-1.5">
+                      <span class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span> LIVE CAMERA
+                    </span>
+                    <span id="camera-stamp-preview" class="px-2.5 py-1 rounded-lg bg-black/50 backdrop-blur-md text-white text-[11px] font-mono"></span>
+                  </div>
+                  <div class="w-40 h-48 mx-auto rounded-[45%] border-2 border-dashed border-white/60"></div>
+                  <p class="text-center text-[11px] text-white/90 bg-black/40 backdrop-blur-sm py-1 px-3 rounded-full mx-auto">
+                    Posisikan wajah Anda di dalam bingkai
+                  </p>
+                </div>
+
+                <!-- Fallback Error Kamera -->
+                <div id="camera-error-box" class="hidden absolute inset-0 bg-slate-900 text-white p-6 flex flex-col items-center justify-center text-center">
+                  <i data-lucide="camera-off" class="w-10 h-10 text-rose-400 mb-3"></i>
+                  <p class="text-sm font-bold">Akses Kamera Tidak Tersedia</p>
+                  <p id="camera-error-msg" class="text-xs text-slate-400 mt-1 max-w-xs">Pastikan Anda memberikan izin akses kamera pada browser atau perangkat Anda.</p>
+                  <button type="button" onclick="startEmployeeCamera()" class="mt-4 px-4 py-2 rounded-xl bg-blue-600 text-xs font-semibold">Coba Akses Kamera</button>
+                </div>
+              </div>
+
+              <!-- Action Buttons Check-In / Check-Out -->
+              <div class="mt-6 max-w-md mx-auto grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button id="btn-do-checkin" onclick="submitAttendanceWithPhoto('checkin')" class="py-3.5 px-5 rounded-2xl bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-semibold text-sm shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 transition-all">
+                  <i data-lucide="camera" class="w-4 h-4"></i>
+                  <span>Foto &amp; Absen Masuk</span>
+                </button>
+                <button id="btn-do-checkout" onclick="submitAttendanceWithPhoto('checkout')" class="py-3.5 px-5 rounded-2xl bg-indigo-600 hover:bg-indigo-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-semibold text-sm shadow-lg shadow-indigo-600/20 flex items-center justify-center gap-2 transition-all">
+                  <i data-lucide="check-square" class="w-4 h-4"></i>
+                  <span>Foto &amp; Absen Pulang</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- TAB 2: RIWAYAT ABSENSI SAYA -->
+          <div id="emp-panel-riwayat" class="hidden space-y-5">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+              <div>
+                <h2 class="text-lg font-bold text-slate-900">Riwayat Absensi Saya</h2>
+                <p class="text-xs text-slate-500">Daftar kehadiran beserta bukti tangkapan kamera Anda.</p>
+              </div>
+              <span id="emp-history-count" class="px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-bold">0 Catatan</span>
+            </div>
+
+            <div id="emp-history-list" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Diisi via JS -->
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Mobile Floating Bottom Navigation Bar -->
+      <nav class="md:hidden fixed bottom-4 left-4 right-4 z-30 glass-panel rounded-2xl shadow-xl border border-slate-200/90 p-1.5 grid grid-cols-2 gap-1">
+        <button onclick="switchKaryawanTab('kamera')" id="mob-emp-tab-kamera" class="flex flex-col items-center justify-center py-2 rounded-xl text-xs font-semibold transition-all">
+          <i data-lucide="camera" class="w-5 h-5 mb-0.5"></i>
+          <span>Absensi Kamera</span>
+        </button>
+        <button onclick="switchKaryawanTab('riwayat')" id="mob-emp-tab-riwayat" class="flex flex-col items-center justify-center py-2 rounded-xl text-xs font-semibold transition-all">
+          <i data-lucide="history" class="w-5 h-5 mb-0.5"></i>
+          <span>Riwayat Saya</span>
+        </button>
+      </nav>
+    </section>
+
+    <!-- VIEW 4: PORTAL ADMIN HRD -->
+    <section id="view-admin" class="hidden min-h-screen bg-slate-50/60 pb-24 md:pb-8">
+      <!-- Desktop Fixed Left Sidebar -->
+      <aside class="hidden md:flex fixed top-0 left-0 bottom-0 w-64 bg-white border-r border-slate-200/80 flex-col justify-between p-5 z-30">
+        <div>
+          <div class="flex items-center gap-3 pb-6 border-b border-slate-100">
+            <div class="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+              <i data-lucide="shield-check" class="w-5 h-5"></i>
+            </div>
+            <div>
+              <h1 class="font-bold text-sm text-slate-900">AttendCam.Pro</h1>
+              <p class="text-[11px] text-slate-500">Admin HRD Console</p>
+            </div>
+          </div>
+
+          <nav class="mt-6 space-y-1.5">
+            <button onclick="switchAdminTab('dashboard')" id="desk-adm-tab-dashboard" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all">
+              <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+              <span>Dashboard Ringkasan</span>
+            </button>
+            <button onclick="switchAdminTab('karyawan')" id="desk-adm-tab-karyawan" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all">
+              <i data-lucide="users" class="w-4 h-4"></i>
+              <span>Data Karyawan</span>
+            </button>
+            <button onclick="switchAdminTab('laporan')" id="desk-adm-tab-laporan" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all">
+              <i data-lucide="file-check-2" class="w-4 h-4"></i>
+              <span>Laporan &amp; Bukti Foto</span>
+            </button>
+            <button onclick="switchAdminTab('pengaturan')" id="desk-adm-tab-pengaturan" class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all">
+              <i data-lucide="settings" class="w-4 h-4"></i>
+              <span>Pengaturan Jam Kerja</span>
+            </button>
+          </nav>
+        </div>
+
+        <div class="pt-4 border-t border-slate-100">
+          <div class="p-3 rounded-xl bg-slate-50 mb-3">
+            <p class="text-xs font-bold text-slate-900">Administrator</p>
+            <p id="desk-adm-email" class="text-[11px] text-slate-500 truncate">-</p>
+          </div>
+          <button onclick="logoutUser()" class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-semibold text-rose-600 bg-rose-50 hover:bg-rose-100 transition-colors">
+            <i data-lucide="log-out" class="w-4 h-4"></i> Keluar Admin
+          </button>
+        </div>
+      </aside>
+
+      <!-- Mobile Top Bar Admin -->
+      <header class="md:hidden sticky top-0 z-20 glass-panel border-b border-slate-200/80 px-4 py-3 flex items-center justify-between">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-slate-900 text-white flex items-center justify-center">
+            <i data-lucide="shield-check" class="w-4 h-4"></i>
+          </div>
+          <div>
+            <p class="text-xs font-bold text-slate-900">Admin HRD Console</p>
+            <p id="mob-adm-email" class="text-[10px] text-slate-500 truncate max-w-[180px]">-</p>
+          </div>
+        </div>
+        <button onclick="logoutUser()" class="p-2 rounded-xl text-rose-600 bg-rose-50" title="Keluar">
+          <i data-lucide="log-out" class="w-4 h-4"></i>
+        </button>
+      </header>
+
+      <!-- Main Content Admin -->
+      <main class="md:pl-64">
+        <div class="max-w-6xl mx-auto p-4 sm:p-6 lg:p-8">
+
+          <!-- ADMIN TAB 1: DASHBOARD RINGKASAN -->
+          <div id="adm-panel-dashboard" class="space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <h2 class="text-xl font-bold text-slate-900">Dashboard Ringkasan Kehadiran</h2>
+                <p id="adm-today-subtitle" class="text-xs text-slate-500 mt-0.5">-</p>
+              </div>
+              <button onclick="switchAdminTab('laporan')" class="self-start sm:self-auto px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm transition-all">
+                Lihat Semua Bukti Foto
+              </button>
+            </div>
+
+            <!-- 4 KPI Cards -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <div class="w-10 h-10 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center mb-3">
+                  <i data-lucide="users" class="w-5 h-5"></i>
+                </div>
+                <p class="text-xs font-medium text-slate-500">Total Karyawan Aktif</p>
+                <p id="stat-total-emp" class="text-2xl font-extrabold text-slate-900 mt-1">0</p>
+              </div>
+
+              <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+                  <i data-lucide="user-check" class="w-5 h-5"></i>
+                </div>
+                <p class="text-xs font-medium text-slate-500">Hadir Tepat Waktu</p>
+                <p id="stat-ontime-today" class="text-2xl font-extrabold text-emerald-600 mt-1">0</p>
+              </div>
+
+              <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <div class="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center mb-3">
+                  <i data-lucide="clock-alert" class="w-5 h-5"></i>
+                </div>
+                <p class="text-xs font-medium text-slate-500">Terlambat Hari Ini</p>
+                <p id="stat-late-today" class="text-2xl font-extrabold text-amber-600 mt-1">0</p>
+              </div>
+
+              <div class="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+                <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center mb-3">
+                  <i data-lucide="user-x" class="w-5 h-5"></i>
+                </div>
+                <p class="text-xs font-medium text-slate-500">Belum Absen</p>
+                <p id="stat-absent-today" class="text-2xl font-extrabold text-rose-600 mt-1">0</p>
+              </div>
+            </div>
+
+            <!-- Aktivitas Absensi Terbaru Hari Ini -->
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <div class="p-5 border-b border-slate-100 flex items-center justify-between">
+                <h3 class="text-sm font-bold text-slate-900">Absensi Masuk Terbaru Hari Ini</h3>
+                <span class="text-xs text-slate-400">Real-time feed</span>
+              </div>
+              <div id="adm-recent-feed" class="divide-y divide-slate-100">
+                <!-- Diisi via JS -->
+              </div>
+            </div>
+          </div>
+
+          <!-- ADMIN TAB 2: DATA KARYAWAN -->
+          <div id="adm-panel-karyawan" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <h2 class="text-xl font-bold text-slate-900">Manajemen Data Karyawan</h2>
+                <p class="text-xs text-slate-500 mt-0.5">Kelola akun NIP dan password untuk akses portal absensi karyawan.</p>
+              </div>
+              <button onclick="openEmployeeFormModal()" class="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm flex items-center gap-2 self-start sm:self-auto">
+                <i data-lucide="user-plus" class="w-4 h-4"></i>
+                <span>Tambah Karyawan</span>
+              </button>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      <th class="py-3.5 px-4">NIP / ID</th>
+                      <th class="py-3.5 px-4">Nama Lengkap</th>
+                      <th class="py-3.5 px-4">Jabatan</th>
+                      <th class="py-3.5 px-4">Password</th>
+                      <th class="py-3.5 px-4">Status</th>
+                      <th class="py-3.5 px-4 text-right">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adm-employee-table" class="divide-y divide-slate-100 text-sm">
+                    <!-- Diisi via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ADMIN TAB 3: LAPORAN & BUKTI FOTO ABSENSI -->
+          <div id="adm-panel-laporan" class="hidden space-y-6">
+            <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-sm">
+              <div>
+                <h2 class="text-lg font-bold text-slate-900">Laporan &amp; Bukti Foto Absensi</h2>
+                <p class="text-xs text-slate-500">Verifikasi foto selfie masuk dan pulang seluruh karyawan.</p>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <input type="date" id="filter-laporan-date" onchange="renderAdminReports()" class="px-3.5 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <button onclick="resetReportDateFilter()" class="px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-xs font-semibold text-slate-600">
+                  Semua Tanggal
+                </button>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl border border-slate-200/80 shadow-sm overflow-hidden">
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
+                  <thead>
+                    <tr class="bg-slate-50/80 border-b border-slate-200/80 text-[11px] font-bold uppercase tracking-wider text-slate-500">
+                      <th class="py-3.5 px-4">Tanggal</th>
+                      <th class="py-3.5 px-4">Karyawan</th>
+                      <th class="py-3.5 px-4">Jam Masuk</th>
+                      <th class="py-3.5 px-4">Status</th>
+                      <th class="py-3.5 px-4">Jam Pulang</th>
+                      <th class="py-3.5 px-4 text-right">Bukti Kamera</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adm-report-table" class="divide-y divide-slate-100 text-sm">
+                    <!-- Diisi via JS -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- ADMIN TAB 4: PENGATURAN JAM KERJA -->
+          <div id="adm-panel-pengaturan" class="hidden max-w-xl space-y-6">
+            <div>
+              <h2 class="text-xl font-bold text-slate-900">Pengaturan Jam Kerja</h2>
+              <p class="text-xs text-slate-500 mt-0.5">Tentukan batas toleransi jam masuk untuk deteksi status keterlambatan otomatis.</p>
+            </div>
+
+            <form onsubmit="saveWorkSettings(event)" class="bg-white p-6 rounded-2xl border border-slate-200/80 shadow-sm space-y-5">
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">Batas Jam Masuk (Tepat Waktu)</label>
+                <input type="time" id="setting-jam-masuk" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <p class="text-[11px] text-slate-400 mt-1">Karyawan yang absen melewati jam ini akan otomatis berstatus <strong>Terlambat</strong>.</p>
+              </div>
+
+              <div>
+                <label class="block text-xs font-bold text-slate-700 mb-1.5">Jam Pulang Standar</label>
+                <input type="time" id="setting-jam-pulang" required class="w-full px-4 py-3 rounded-xl border border-slate-200 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              </div>
+
+              <button type="submit" id="btn-save-settings" class="w-full py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-semibold text-sm shadow-md transition-all">
+                Simpan Pengaturan Jam Kerja
+              </button>
+            </form>
+          </div>
+
+        </div>
+      </main>
+
+      <!-- Mobile Floating Bottom Navigation Bar Admin -->
+      <nav class="md:hidden fixed bottom-4 left-3 right-3 z-30 glass-panel rounded-2xl shadow-xl border border-slate-200/90 p-1.5 grid grid-cols-4 gap-1">
+        <button onclick="switchAdminTab('dashboard')" id="mob-adm-tab-dashboard" class="flex flex-col items-center justify-center py-2 rounded-xl text-[10px] font-semibold transition-all">
+          <i data-lucide="layout-dashboard" class="w-4 h-4 mb-0.5"></i>
+          <span>Ringkasan</span>
+        </button>
+        <button onclick="switchAdminTab('karyawan')" id="mob-adm-tab-karyawan" class="flex flex-col items-center justify-center py-2 rounded-xl text-[10px] font-semibold transition-all">
+          <i data-lucide="users" class="w-4 h-4 mb-0.5"></i>
+          <span>Karyawan</span>
+        </button>
+        <button onclick="switchAdminTab('laporan')" id="mob-adm-tab-laporan" class="flex flex-col items-center justify-center py-2 rounded-xl text-[10px] font-semibold transition-all">
+          <i data-lucide="file-check-2" class="w-4 h-4 mb-0.5"></i>
+          <span>Laporan</span>
+        </button>
+        <button onclick="switchAdminTab('pengaturan')" id="mob-adm-tab-pengaturan" class="flex flex-col items-center justify-center py-2 rounded-xl text-[10px] font-semibold transition-all">
+          <i data-lucide="settings" class="w-4 h-4 mb-0.5"></i>
+          <span>Jam Kerja</span>
+        </button>
+      </nav>
+    </section>
+  </div>
+
+  <!-- MAIN APPLICATION LOGIC (ES MODULE) -->
+  <script type="module">
+    // =========================================================================
+    // KONFIGURASI APLIKASI (SAKLAR DEPLOYMENT & FIREBASE CONFIG)
+    // =========================================================================
+    const IS_PREVIEW = false; // Saat melakukan Deploy / Publish, ubah nilainya menjadi false agar aplikasi menggunakan database Firebase secara langsung tanpa data dummy
+
+    // Tempelkan konfigurasi Firebase Kalian di sini
+    const firebaseConfig = {
+      apiKey: "AIzaSyAxV4AgH6LQWn3fYQkAceA1VuAyQD9BlbQ",
+  authDomain: "absensikaryawan-f9b77.firebaseapp.com",
+  projectId: "absensikaryawan-f9b77",
+  storageBucket: "absensikaryawan-f9b77.firebasestorage.app",
+  messagingSenderId: "646015687102",
+  appId: "1:646015687102:web:c688cea3a7cfa51cac01ef"
+    };
+
+    // =========================================================================
+    // IMPORT FIREBASE SDK (VERSI MODULAR 11.6.1)
+    // =========================================================================
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import {
+      getAuth,
+      signInWithEmailAndPassword,
+      signOut,
+      onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import {
+      getFirestore,
+      collection,
+      doc,
+      getDoc,
+      getDocs,
+      addDoc,
+      setDoc,
+      updateDoc,
+      deleteDoc,
+      query,
+      where,
+      onSnapshot,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // =========================================================================
+    // REGISTRASI PWA SERVICE WORKER DINAMIS (VIA BLOB)
+    // =========================================================================
+    if ('serviceWorker' in navigator) {
+      const swCode = `
+        const CACHE_NAME = 'attendcam-pro-v1';
+        self.addEventListener('install', (event) => {
+          self.skipWaiting();
+        });
+        self.addEventListener('activate', (event) => {
+          event.waitUntil(clients.claim());
+        });
+        self.addEventListener('fetch', (event) => {
+          event.respondWith(
+            fetch(event.request).catch(() => caches.match(event.request))
+          );
+        });
+      `;
+      const swBlob = new Blob([swCode], { type: 'application/javascript' });
+      const swUrl = URL.createObjectURL(swBlob);
+      navigator.serviceWorker.register(swUrl).catch(() => {});
+    }
+
+    // =========================================================================
+    // INISIALISASI FIREBASE (HANYA AKTIF JIKA IS_PREVIEW === false)
+    // =========================================================================
+    let app = null;
+    let auth = null;
+    let db = null;
+
+    if (!IS_PREVIEW) {
+      app = initializeApp(firebaseConfig);
+      auth = getAuth(app);
+      db = getFirestore(app);
+    }
+
+    // =========================================================================
+    // STATE APLIKASI (IN-MEMORY)
+    // =========================================================================
+    const getTodayISO = () => {
+      const now = new Date();
+      const y = now.getFullYear();
+      const m = String(now.getMonth() + 1).padStart(2, '0');
+      const d = String(now.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
+    };
+
+    const getNowTime = () => {
+      const now = new Date();
+      return now.toTimeString().split(' ')[0]; // HH:mm:ss
+    };
+
+    // Data Dummy STRICT maksimal 2 item per koleksi & HANYA diisi saat IS_PREVIEW === true
+    let state = {
+      currentRole: null, // 'karyawan' | 'admin'
+      currentUser: null,
+      cameraStream: null,
+      unsubscribers: [],
+      settings: {
+        jamMasukBatas: '08:00',
+        jamPulangStandar: '17:00'
+      },
+      employees: IS_PREVIEW ? [
+        {
+          id: 'demo-emp-1',
+          nip: 'EMP001',
+          password: '123',
+          nama: 'Budi Santoso',
+          jabatan: 'Staff Operasional',
+          statusAktif: true
+        },
+        {
+          id: 'demo-emp-2',
+          nip: 'EMP002',
+          password: '123',
+          nama: 'Siti Rahmawati',
+          jabatan: 'Analis Keuangan',
+          statusAktif: true
+        }
+      ] : [],
+      attendances: IS_PREVIEW ? [
+        {
+          id: 'demo-att-1',
+          karyawanId: 'demo-emp-2',
+          nip: 'EMP002',
+          nama: 'Siti Rahmawati',
+          jabatan: 'Analis Keuangan',
+          tanggal: getTodayISO(),
+          jamMasuk: '07:52:14',
+          fotoMasuk: 'https://placehold.co/320x240/2563eb/ffffff?text=Selfie+Masuk+EMP002',
+          statusMasuk: 'Tepat Waktu',
+          jamPulang: '',
+          fotoPulang: ''
+        }
+      ] : []
+    };
+
+    // =========================================================================
+    // UTILITAS UI (TOAST, MODAL, FORMAT TANGGAL, IKON)
+    // =========================================================================
+    function refreshIcons() {
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    }
+
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toast-container');
+      const colors = {
+        success: 'bg-emerald-600 text-white border-emerald-500',
+        error: 'bg-rose-600 text-white border-rose-500',
+        info: 'bg-slate-900 text-white border-slate-800'
+      };
+      const iconName = type === 'success' ? 'check-circle' : type === 'error' ? 'alert-circle' : 'info';
+
+      const toast = document.createElement('div');
+      toast.className = `pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl shadow-xl border text-xs font-semibold transform transition-all duration-300 translate-y-0 ${colors[type] || colors.info}`;
+      toast.innerHTML = `
+        <i data-lucide="${iconName}" class="w-4 h-4 shrink-0"></i>
+        <span class="flex-1 leading-snug">${message}</span>
+      `;
+      container.appendChild(toast);
+      refreshIcons();
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(-8px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 3600);
+    }
+
+    function openModal(htmlContent) {
+      const modal = document.getElementById('global-modal');
+      const content = document.getElementById('global-modal-content');
+      content.innerHTML = htmlContent;
+      modal.classList.remove('hidden');
+      refreshIcons();
+    }
+
+    window.closeModal = function () {
+      document.getElementById('global-modal').classList.add('hidden');
+    };
+
+    function formatTanggalIndo(isoDate) {
+      if (!isoDate) return '-';
+      const parts = isoDate.split('-');
+      if (parts.length !== 3) return isoDate;
+      const bulan = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      return `${parts[2]} ${bulan[parseInt(parts[1], 10) - 1]} ${parts[0]}`;
+    }
+
+    // =========================================================================
+    // RENDER BANNER & PETUNJUK DEMO (STRICT HANYA SAAT IS_PREVIEW === true)
+    // =========================================================================
+    function renderPreviewIndicators() {
+      const bannerSlot = document.getElementById('preview-banner-slot');
+      const hintEmp = document.getElementById('demo-hint-karyawan');
+      const hintAdm = document.getElementById('demo-hint-admin');
+
+      if (IS_PREVIEW) {
+        bannerSlot.innerHTML = `
+          <div class="bg-amber-50 border-b border-amber-200 px-4 py-2 text-center text-xs font-medium text-amber-900 flex items-center justify-center gap-2">
+            <span class="px-2 py-0.5 rounded-full bg-amber-500 text-white text-[10px] font-bold uppercase tracking-wider">Mode Preview</span>
+            <span>Aplikasi berjalan menggunakan simulasi data in-memory. Ubah <code class="font-mono font-bold">IS_PREVIEW = false</code> saat deploy ke Firebase.</span>
+          </div>
+        `;
+        hintEmp.innerHTML = `
+          <div class="p-3 rounded-xl bg-blue-50 border border-blue-100 text-[11px] text-blue-800 space-y-1">
+            <p class="font-bold">Akun Uji Coba Karyawan (Mode Preview):</p>
+            <p>NIP: <code class="font-mono font-bold">EMP001</code> | Password: <code class="font-mono font-bold">123</code></p>
+          </div>
+        `;
+        hintAdm.innerHTML = `
+          <div class="p-3 rounded-xl bg-slate-100 border border-slate-200 text-[11px] text-slate-700 space-y-1">
+            <p class="font-bold">Akun Uji Coba Admin (Mode Preview):</p>
+            <p>Email: <code class="font-mono font-bold">admin@demo.com</code> | Password: <code class="font-mono font-bold">admin123</code></p>
+          </div>
+        `;
+      } else {
+        bannerSlot.innerHTML = '';
+        hintEmp.innerHTML = '';
+        hintAdm.innerHTML = '';
+      }
+    }
+
+    // =========================================================================
+    // HERO INTERACTIVE EFFECTS (3D TILT, PARALLAX, SPOTLIGHT)
+    // =========================================================================
+    function initHeroInteractions() {
+      const heroSection = document.getElementById('view-prelogin');
+      const tiltTarget = document.getElementById('hero-tilt-target');
+      const parallaxItems = document.querySelectorAll('.parallax-item');
+
+      if (!heroSection || window.matchMedia('(hover: none)').matches) return;
+
+      heroSection.addEventListener('mousemove', (e) => {
+        const rect = heroSection.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        heroSection.style.setProperty('--mouse-x', `${x}px`);
+        heroSection.style.setProperty('--mouse-y', `${y}px`);
+
+        const centerX = rect.width / 2;
+        const centerY = rect.height / 2;
+        const normX = (x - centerX) / centerX;
+        const normY = (y - centerY) / centerY;
+
+        if (tiltTarget) {
+          tiltTarget.style.setProperty('--rx', `${(normX * 7).toFixed(2)}deg`);
+          tiltTarget.style.setProperty('--ry', `${(-normY * 6).toFixed(2)}deg`);
+        }
+
+        parallaxItems.forEach((item) => {
+          const speed = parseFloat(item.getAttribute('data-parallax') || '12');
+          item.style.transform = `translate3d(${(normX * speed).toFixed(1)}px, ${(normY * speed).toFixed(1)}px, 0)`;
+        });
+      });
+
+      heroSection.addEventListener('mouseleave', () => {
+        if (tiltTarget) {
+          tiltTarget.style.setProperty('--rx', '-6deg');
+          tiltTarget.style.setProperty('--ry', '4deg');
+        }
+        parallaxItems.forEach((item) => {
+          item.style.transform = 'translate3d(0, 0, 0)';
+        });
+      });
+    }
+
+    // =========================================================================
+    // NAVIGASI ANTAR VIEW & ROLE SWITCHER
+    // =========================================================================
+    function showOnlyView(viewId) {
+      ['view-prelogin', 'view-login', 'view-karyawan', 'view-admin'].forEach((id) => {
+        document.getElementById(id).classList.add('hidden');
+      });
+      document.getElementById(viewId).classList.remove('hidden');
+      refreshIcons();
+    }
+
+    window.openLoginModal = function (role = 'karyawan') {
+      stopEmployeeCamera();
+      showOnlyView('view-login');
+      switchLoginRole(role);
+    };
+
+    window.backToPreLogin = function () {
+      stopEmployeeCamera();
+      showOnlyView('view-prelogin');
+    };
+
+    window.switchLoginRole = function (role) {
+      const tabEmp = document.getElementById('tab-role-karyawan');
+      const tabAdm = document.getElementById('tab-role-admin');
+      const formEmp = document.getElementById('form-login-karyawan');
+      const formAdm = document.getElementById('form-login-admin');
+
+      if (role === 'karyawan') {
+        tabEmp.className = 'py-2.5 text-xs sm:text-sm font-semibold rounded-xl bg-white text-blue-600 shadow-sm transition-all';
+        tabAdm.className = 'py-2.5 text-xs sm:text-sm font-semibold rounded-xl text-slate-600 hover:text-slate-900 transition-all';
+        formEmp.classList.remove('hidden');
+        formAdm.classList.add('hidden');
+      } else {
+        tabAdm.className = 'py-2.5 text-xs sm:text-sm font-semibold rounded-xl bg-white text-slate-900 shadow-sm transition-all';
+        tabEmp.className = 'py-2.5 text-xs sm:text-sm font-semibold rounded-xl text-slate-600 hover:text-slate-900 transition-all';
+        formAdm.classList.remove('hidden');
+        formEmp.classList.add('hidden');
+      }
+    };
+
+    // =========================================================================
+    // AUTENTIKASI HYBRID (KARYAWAN VIA FIRESTORE, ADMIN VIA FIREBASE AUTH)
+    // =========================================================================
+    window.handleKaryawanLogin = async function (e) {
+      e.preventDefault();
+      const nipInput = document.getElementById('login-nip').value.trim();
+      const passInput = document.getElementById('login-emp-password').value.trim();
+      const btn = document.getElementById('btn-submit-karyawan');
+
+      if (!nipInput || !passInput) return;
+      btn.disabled = true;
+      btn.innerHTML = '<span>Memverifikasi Akun...</span>';
+
+      try {
+        if (IS_PREVIEW) {
+          const found = state.employees.find(
+            (emp) => emp.nip.toLowerCase() === nipInput.toLowerCase() && emp.password === passInput
+          );
+          if (!found) {
+            throw new Error('NIP atau Password karyawan tidak valid.');
+          }
+          if (!found.statusAktif) {
+            throw new Error('Akun karyawan Anda sedang dinonaktifkan oleh HRD.');
+          }
+          state.currentRole = 'karyawan';
+          state.currentUser = found;
+          enterKaryawanPortal();
+          showToast(`Selamat datang, ${found.nama}!`, 'success');
+        } else {
+          // Mode Produksi: Query langsung ke koleksi 'karyawan' Firestore
+          const q = query(collection(db, 'karyawan'), where('nip', '==', nipInput));
+          const snap = await getDocs(q);
+          if (snap.empty) {
+            throw new Error('ID Karyawan (NIP) tidak ditemukan di database.');
+          }
+          let matchedEmp = null;
+          snap.forEach((docSnap) => {
+            const data = docSnap.data();
+            if (data.password === passInput) {
+              matchedEmp = { id: docSnap.id, ...data };
+            }
+          });
+          if (!matchedEmp) {
+            throw new Error('Password yang Anda masukkan salah.');
+          }
+          if (matchedEmp.statusAktif === false) {
+            throw new Error('Akun karyawan Anda dinonaktifkan. Hubungi Admin HRD.');
+          }
+
+          state.currentRole = 'karyawan';
+          state.currentUser = matchedEmp;
+          await subscribeProductionDataForKaryawan(matchedEmp.id);
+          enterKaryawanPortal();
+          showToast(`Berhasil masuk sebagai ${matchedEmp.nama}`, 'success');
+        }
+      } catch (err) {
+        showToast(err.message || 'Gagal masuk ke portal karyawan.', 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Masuk ke Portal Absensi</span><i data-lucide="arrow-right" class="w-4 h-4"></i>';
+        refreshIcons();
+      }
+    };
+
+    window.handleAdminLogin = async function (e) {
+      e.preventDefault();
+      const emailInput = document.getElementById('login-admin-email').value.trim();
+      const passInput = document.getElementById('login-admin-password').value.trim();
+      const btn = document.getElementById('btn-submit-admin');
+
+      btn.disabled = true;
+      btn.innerHTML = '<span>Mengautentikasi Admin...</span>';
+
+      try {
+        if (IS_PREVIEW) {
+          if (emailInput === 'admin@demo.com' && passInput === 'admin123') {
+            state.currentRole = 'admin';
+            state.currentUser = { email: emailInput };
+            enterAdminPortal();
+            showToast('Berhasil masuk ke Admin Console (Mode Preview)', 'success');
+          } else {
+            throw new Error('Kredensial Admin preview tidak cocok.');
+          }
+        } else {
+          // Mode Produksi: Firebase Authentication Email & Password
+          const userCred = await signInWithEmailAndPassword(auth, emailInput, passInput);
+          state.currentRole = 'admin';
+          state.currentUser = { uid: userCred.user.uid, email: userCred.user.email };
+          await subscribeProductionDataForAdmin();
+          enterAdminPortal();
+          showToast('Berhasil masuk sebagai Administrator HRD', 'success');
+        }
+      } catch (err) {
+        let msg = err.message;
+        if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+          msg = 'Email atau Password Admin tidak terdaftar di Firebase Auth.';
+        }
+        showToast(msg, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<span>Masuk Dashboard Admin</span><i data-lucide="shield" class="w-4 h-4"></i>';
+        refreshIcons();
+      }
+    };
+
+    window.logoutUser = async function () {
+      stopEmployeeCamera();
+      cleanupListeners();
+      if (!IS_PREVIEW && auth && auth.currentUser) {
+        try {
+          await signOut(auth);
+        } catch (e) {}
+      }
+      state.currentRole = null;
+      state.currentUser = null;
+      if (!IS_PREVIEW) {
+        state.employees = [];
+        state.attendances = [];
+      }
+      showOnlyView('view-prelogin');
+      showToast('Anda telah keluar dari sesi.', 'info');
+    };
+
+    function cleanupListeners() {
+      state.unsubscribers.forEach((unsub) => {
+        if (typeof unsub === 'function') unsub();
+      });
+      state.unsubscribers = [];
+    }
+
+    // =========================================================================
+    // SINKRONISASI DATA REAL-TIME FIRESTORE (HANYA SAAT IS_PREVIEW === false)
+    // =========================================================================
+    async function fetchSettingsProduction() {
+      try {
+        const snap = await getDoc(doc(db, 'pengaturan', 'jam_kerja'));
+        if (snap.exists()) {
+          const data = snap.data();
+          state.settings.jamMasukBatas = data.jamMasukBatas || '08:00';
+          state.settings.jamPulangStandar = data.jamPulangStandar || '17:00';
+        }
+      } catch (err) {
+        console.warn('Menggunakan jam kerja default:', err);
+      }
+    }
+
+    async function subscribeProductionDataForKaryawan(karyawanId) {
+      cleanupListeners();
+      await fetchSettingsProduction();
+
+      const qAbsensi = query(collection(db, 'absensi'), where('karyawanId', '==', karyawanId));
+      const unsub = onSnapshot(qAbsensi, (snapshot) => {
+        const list = [];
+        snapshot.forEach((d) => list.push({ id: d.id, ...d.data() }));
+        list.sort((a, b) => (b.tanggal + b.jamMasuk).localeCompare(a.tanggal + a.jamMasuk));
+        state.attendances = list;
+        updateKaryawanDashboardUI();
+      }, (err) => {
+        showToast('Gagal memuat riwayat absensi: ' + err.message, 'error');
+      });
+      state.unsubscribers.push(unsub);
+    }
+
+    async function subscribeProductionDataForAdmin() {
+      cleanupListeners();
+      await fetchSettingsProduction();
+
+      const unsubEmp = onSnapshot(collection(db, 'karyawan'), (snapshot) => {
+        const list = [];
+        snapshot.forEach((d) => list.push({ id: d.id, ...d.data() }));
+        list.sort((a, b) => (a.nama || '').localeCompare(b.nama || ''));
+        state.employees = list;
+        renderAdminEmployees();
+        renderAdminDashboard();
+      }, (err) => {
+        showToast('Gagal memuat data karyawan: ' + err.message, 'error');
+      });
+
+      const unsubAtt = onSnapshot(collection(db, 'absensi'), (snapshot) => {
+        const list = [];
+        snapshot.forEach((d) => list.push({ id: d.id, ...d.data() }));
+        list.sort((a, b) => (b.tanggal + (b.jamMasuk || '')).localeCompare(a.tanggal + (a.jamMasuk || '')));
+        state.attendances = list;
+        renderAdminDashboard();
+        renderAdminReports();
+      }, (err) => {
+        showToast('Gagal memuat laporan absensi: ' + err.message, 'error');
+      });
+
+      state.unsubscribers.push(unsubEmp, unsubAtt);
+    }
+
+    // =========================================================================
+    // LOGIKA PORTAL KARYAWAN & KAMERA WEBRTC
+    // =========================================================================
+    function enterKaryawanPortal() {
+      showOnlyView('view-karyawan');
+      const emp = state.currentUser;
+      document.getElementById('desk-emp-name').textContent = emp.nama;
+      document.getElementById('desk-emp-jabatan').textContent = `${emp.nip} • ${emp.jabatan}`;
+      document.getElementById('mob-emp-name').textContent = emp.nama;
+      document.getElementById('mob-emp-nip').textContent = `NIP: ${emp.nip}`;
+      document.getElementById('emp-today-date-label').textContent = `Tanggal Hari Ini: ${formatTanggalIndo(getTodayISO())}`;
+
+      switchKaryawanTab('kamera');
+      updateKaryawanDashboardUI();
+    }
+
+    window.switchKaryawanTab = function (tab) {
+      const panelCam = document.getElementById('emp-panel-kamera');
+      const panelHis = document.getElementById('emp-panel-riwayat');
+
+      const deskCam = document.getElementById('desk-emp-tab-kamera');
+      const deskHis = document.getElementById('desk-emp-tab-riwayat');
+      const mobCam = document.getElementById('mob-emp-tab-kamera');
+      const mobHis = document.getElementById('mob-emp-tab-riwayat');
+
+      if (tab === 'kamera') {
+        panelCam.classList.remove('hidden');
+        panelHis.classList.add('hidden');
+
+        deskCam.className = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold bg-blue-50 text-blue-600 transition-all';
+        deskHis.className = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all';
+
+        mobCam.className = 'flex flex-col items-center justify-center py-2 rounded-xl text-xs font-semibold bg-blue-600 text-white shadow-sm transition-all';
+        mobHis.className = 'flex flex-col items-center justify-center py-2 rounded-xl text-xs font-semibold text-slate-600 transition-all';
+
+        startEmployeeCamera();
+      } else {
+        panelCam.classList.add('hidden');
+        panelHis.classList.remove('hidden');
+
+        deskHis.className = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold bg-blue-50 text-blue-600 transition-all';
+        deskCam.className = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all';
+
+        mobHis.className = 'flex flex-col items-center justify-center py-2 rounded-xl text-xs font-semibold bg-blue-600 text-white shadow-sm transition-all';
+        mobCam.className = 'flex flex-col items-center justify-center py-2 rounded-xl text-xs font-semibold text-slate-600 transition-all';
+
+        stopEmployeeCamera();
+        renderKaryawanHistory();
+      }
+    };
+
+    window.startEmployeeCamera = async function () {
+      const video = document.getElementById('camera-video');
+      const errBox = document.getElementById('camera-error-box');
+      const errMsg = document.getElementById('camera-error-msg');
+
+      stopEmployeeCamera();
+      errBox.classList.add('hidden');
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        errMsg.textContent = 'Browser Anda tidak mendukung akses kamera WebRTC.';
+        errBox.classList.remove('hidden');
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+          audio: false
+        });
+        state.cameraStream = stream;
+        video.srcObject = stream;
+      } catch (err) {
+        errMsg.textContent = 'Izin kamera ditolak atau kamera sedang digunakan aplikasi lain.';
+        errBox.classList.remove('hidden');
+      }
+    };
+
+    function stopEmployeeCamera() {
+      if (state.cameraStream) {
+        state.cameraStream.getTracks().forEach((track) => track.stop());
+        state.cameraStream = null;
+      }
+      const video = document.getElementById('camera-video');
+      if (video) video.srcObject = null;
+    }
+
+    // Tangkap & Kompresi Foto Selfie dengan Watermark Timestamp
+    function captureCompressedSelfie(labelType) {
+      const video = document.getElementById('camera-video');
+      const canvas = document.getElementById('camera-canvas');
+
+      if (!state.cameraStream || !video || video.readyState < 2) {
+        throw new Error('Kamera belum siap. Pastikan kamera aktif sebelum mengambil absensi.');
+      }
+
+      const targetW = 480;
+      const targetH = 360;
+      canvas.width = targetW;
+      canvas.height = targetH;
+
+      const ctx = canvas.getContext('2d');
+      // Mirror horizontal agar sesuai tampilan pratinjau selfie
+      ctx.save();
+      ctx.translate(targetW, 0);
+      ctx.scale(-1, 1);
+      ctx.drawImage(video, 0, 0, targetW, targetH);
+      ctx.restore();
+
+      // Overlay Watermark Timestamp di bawah foto
+      ctx.fillStyle = 'rgba(15, 23, 42, 0.72)';
+      ctx.fillRect(0, targetH - 44, targetW, 44);
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 12px Inter, sans-serif';
+      ctx.fillText(`${state.currentUser.nama} (${state.currentUser.nip})`, 12, targetH - 25);
+      ctx.fillStyle = '#93c5fd';
+      ctx.font = '11px monospace';
+      ctx.fillText(`${labelType.toUpperCase()} • ${getTodayISO()} ${getNowTime()}`, 12, targetH - 9);
+
+      // Kompresi JPEG kualitas 0.68 (~25-40KB agar sangat ringan di Firestore)
+      return canvas.toDataURL('image/jpeg', 0.68);
+    }
+
+    function updateKaryawanDashboardUI() {
+      if (!state.currentUser) return;
+      const today = getTodayISO();
+      const myTodayRecord = state.attendances.find(
+        (a) => a.karyawanId === state.currentUser.id && a.tanggal === today
+      );
+
+      document.getElementById('emp-work-hours-info').textContent =
+        `Batas Jam Masuk: ${state.settings.jamMasukBatas} | Jam Pulang: ${state.settings.jamPulangStandar}`;
+
+      const inTimeEl = document.getElementById('emp-status-checkin-time');
+      const inBadgeEl = document.getElementById('emp-status-checkin-badge');
+      const outTimeEl = document.getElementById('emp-status-checkout-time');
+      const outBadgeEl = document.getElementById('emp-status-checkout-badge');
+
+      const btnIn = document.getElementById('btn-do-checkin');
+      const btnOut = document.getElementById('btn-do-checkout');
+
+      if (!myTodayRecord) {
+        inTimeEl.textContent = 'Belum Absen';
+        inBadgeEl.textContent = 'Menunggu Check-In';
+        inBadgeEl.className = 'inline-block mt-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600';
+
+        outTimeEl.textContent = 'Belum Absen';
+        outBadgeEl.textContent = 'Menunggu';
+        outBadgeEl.className = 'inline-block mt-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-100 text-slate-600';
+
+        btnIn.disabled = false;
+        btnOut.disabled = true;
+      } else {
+        inTimeEl.textContent = myTodayRecord.jamMasuk;
+        inBadgeEl.textContent = myTodayRecord.statusMasuk;
+        inBadgeEl.className = myTodayRecord.statusMasuk === 'Tepat Waktu'
+          ? 'inline-block mt-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700'
+          : 'inline-block mt-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-50 text-amber-700';
+
+        btnIn.disabled = true;
+
+        if (myTodayRecord.jamPulang) {
+          outTimeEl.textContent = myTodayRecord.jamPulang;
+          outBadgeEl.textContent = 'Selesai Bekerja';
+          outBadgeEl.className = 'inline-block mt-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700';
+          btnOut.disabled = true;
+        } else {
+          outTimeEl.textContent = 'Belum Pulang';
+          outBadgeEl.textContent = 'Siap Check-Out';
+          outBadgeEl.className = 'inline-block mt-1 text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-indigo-50 text-indigo-700';
+          btnOut.disabled = false;
+        }
+      }
+
+      renderKaryawanHistory();
+    }
+
+    window.submitAttendanceWithPhoto = async function (mode) {
+      const btnIn = document.getElementById('btn-do-checkin');
+      const btnOut = document.getElementById('btn-do-checkout');
+
+      try {
+        const photoDataUrl = captureCompressedSelfie(mode === 'checkin' ? 'Check-In' : 'Check-Out');
+        const today = getTodayISO();
+        const nowTime = getNowTime();
+
+        btnIn.disabled = true;
+        btnOut.disabled = true;
+
+        if (mode === 'checkin') {
+          const limitTime = `${state.settings.jamMasukBatas}:59`;
+          const statusMasuk = nowTime <= limitTime ? 'Tepat Waktu' : 'Terlambat';
+
+          const payload = {
+            karyawanId: state.currentUser.id,
+            nip: state.currentUser.nip,
+            nama: state.currentUser.nama,
+            jabatan: state.currentUser.jabatan,
+            tanggal: today,
+            jamMasuk: nowTime,
+            fotoMasuk: photoDataUrl,
+            statusMasuk: statusMasuk,
+            jamPulang: '',
+            fotoPulang: ''
+          };
+
+          if (IS_PREVIEW) {
+            state.attendances.unshift({ id: 'att-' + Date.now(), ...payload });
+            updateKaryawanDashboardUI();
+          } else {
+            await addDoc(collection(db, 'absensi'), {
+              ...payload,
+              createdAt: serverTimestamp()
+            });
+          }
+          showToast(`Check-In berhasil pukul ${nowTime} (${statusMasuk})`, 'success');
+        } else {
+          const existing = state.attendances.find(
+            (a) => a.karyawanId === state.currentUser.id && a.tanggal === today
+          );
+          if (!existing) {
+            throw new Error('Data Check-In hari ini tidak ditemukan.');
+          }
+
+          if (IS_PREVIEW) {
+            existing.jamPulang = nowTime;
+            existing.fotoPulang = photoDataUrl;
+            updateKaryawanDashboardUI();
+          } else {
+            await updateDoc(doc(db, 'absensi', existing.id), {
+              jamPulang: nowTime,
+              fotoPulang: photoDataUrl
+            });
+          }
+          showToast(`Check-Out berhasil pukul ${nowTime}. Terima kasih!`, 'success');
+        }
+      } catch (err) {
+        showToast(err.message || 'Gagal mencatat absensi.', 'error');
+        updateKaryawanDashboardUI();
+      }
+    };
+
+    function renderKaryawanHistory() {
+      if (!state.currentUser) return;
+      const listEl = document.getElementById('emp-history-list');
+      const countEl = document.getElementById('emp-history-count');
+
+      const myLogs = state.attendances.filter((a) => a.karyawanId === state.currentUser.id);
+      countEl.textContent = `${myLogs.length} Catatan`;
+
+      if (myLogs.length === 0) {
+        listEl.innerHTML = `
+          <div class="col-span-full bg-white rounded-2xl border border-slate-200/80 p-10 text-center">
+            <i data-lucide="calendar-off" class="w-10 h-10 text-slate-300 mx-auto mb-2"></i>
+            <p class="text-sm font-bold text-slate-700">Belum ada data absensi</p>
+            <p class="text-xs text-slate-400 mt-1">Lakukan absensi kamera pertama Anda hari ini.</p>
+          </div>
+        `;
+        refreshIcons();
+        return;
+      }
+
+      listEl.innerHTML = myLogs.map((item) => `
+        <div class="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex flex-col justify-between gap-3">
+          <div class="flex items-center justify-between border-b border-slate-100 pb-2.5">
+            <span class="text-xs font-bold text-slate-900">${formatTanggalIndo(item.tanggal)}</span>
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+              item.statusMasuk === 'Tepat Waktu' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+            }">${item.statusMasuk}</span>
+          </div>
+          <div class="grid grid-cols-2 gap-3 text-xs">
+            <div class="p-2.5 rounded-xl bg-slate-50">
+              <p class="text-[10px] text-slate-400 font-semibold uppercase">Masuk</p>
+              <p class="font-bold text-slate-900 mt-0.5">${item.jamMasuk || '-'}</p>
+            </div>
+            <div class="p-2.5 rounded-xl bg-slate-50">
+              <p class="text-[10px] text-slate-400 font-semibold uppercase">Pulang</p>
+              <p class="font-bold text-slate-900 mt-0.5">${item.jamPulang || 'Belum Pulang'}</p>
+            </div>
+          </div>
+          <button onclick="viewPhotoProof('${item.id}')" class="w-full py-2 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors">
+            <i data-lucide="image" class="w-3.5 h-3.5"></i> Lihat Bukti Foto Kamera
+          </button>
+        </div>
+      `).join('');
+      refreshIcons();
+    }
+
+    // =========================================================================
+    // LOGIKA PORTAL ADMIN HRD (DASHBOARD, KARYAWAN, LAPORAN, JAM KERJA)
+    // =========================================================================
+    function enterAdminPortal() {
+      showOnlyView('view-admin');
+      const email = state.currentUser?.email || 'Admin';
+      document.getElementById('desk-adm-email').textContent = email;
+      document.getElementById('mob-adm-email').textContent = email;
+      document.getElementById('adm-today-subtitle').textContent = `Rekapitulasi Kehadiran — ${formatTanggalIndo(getTodayISO())}`;
+
+      document.getElementById('setting-jam-masuk').value = state.settings.jamMasukBatas;
+      document.getElementById('setting-jam-pulang').value = state.settings.jamPulangStandar;
+
+      switchAdminTab('dashboard');
+      renderAdminDashboard();
+      renderAdminEmployees();
+      renderAdminReports();
+    }
+
+    window.switchAdminTab = function (tab) {
+      const tabs = ['dashboard', 'karyawan', 'laporan', 'pengaturan'];
+      tabs.forEach((t) => {
+        const panel = document.getElementById(`adm-panel-${t}`);
+        const deskBtn = document.getElementById(`desk-adm-tab-${t}`);
+        const mobBtn = document.getElementById(`mob-adm-tab-${t}`);
+
+        if (t === tab) {
+          panel.classList.remove('hidden');
+          deskBtn.className = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold bg-slate-900 text-white shadow-sm transition-all';
+          mobBtn.className = 'flex flex-col items-center justify-center py-2 rounded-xl text-[10px] font-semibold bg-slate-900 text-white shadow-sm transition-all';
+        } else {
+          panel.classList.add('hidden');
+          deskBtn.className = 'w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-slate-600 hover:bg-slate-50 transition-all';
+          mobBtn.className = 'flex flex-col items-center justify-center py-2 rounded-xl text-[10px] font-semibold text-slate-600 transition-all';
+        }
+      });
+
+      if (tab === 'pengaturan') {
+        document.getElementById('setting-jam-masuk').value = state.settings.jamMasukBatas;
+        document.getElementById('setting-jam-pulang').value = state.settings.jamPulangStandar;
+      }
+      refreshIcons();
+    };
+
+    function renderAdminDashboard() {
+      const today = getTodayISO();
+      const activeEmployees = state.employees.filter((e) => e.statusAktif !== false);
+      const todayAttendances = state.attendances.filter((a) => a.tanggal === today);
+
+      const ontimeCount = todayAttendances.filter((a) => a.statusMasuk === 'Tepat Waktu').length;
+      const lateCount = todayAttendances.filter((a) => a.statusMasuk === 'Terlambat').length;
+      const absentCount = Math.max(0, activeEmployees.length - todayAttendances.length);
+
+      document.getElementById('stat-total-emp').textContent = activeEmployees.length;
+      document.getElementById('stat-ontime-today').textContent = ontimeCount;
+      document.getElementById('stat-late-today').textContent = lateCount;
+      document.getElementById('stat-absent-today').textContent = absentCount;
+
+      const feedEl = document.getElementById('adm-recent-feed');
+      if (todayAttendances.length === 0) {
+        feedEl.innerHTML = `
+          <div class="p-8 text-center text-xs text-slate-400">
+            Belum ada karyawan yang melakukan absensi hari ini (${formatTanggalIndo(today)}).
+          </div>
+        `;
+        return;
+      }
+
+      feedEl.innerHTML = todayAttendances.slice(0, 8).map((att) => `
+        <div class="p-4 flex items-center justify-between gap-3 hover:bg-slate-50/70 transition-colors">
+          <div class="flex items-center gap-3 min-w-0">
+            <img src="${att.fotoMasuk}" alt="${att.nama}" onerror="this.src='https://placehold.co/80x80/e2e8f0/475569?text=Foto'" class="w-11 h-11 rounded-xl object-cover border border-slate-200 shrink-0" />
+            <div class="min-w-0">
+              <p class="text-sm font-bold text-slate-900 truncate">${att.nama}</p>
+              <p class="text-xs text-slate-500 truncate">${att.nip} • ${att.jabatan}</p>
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            <p class="text-xs font-bold text-slate-900 font-mono">${att.jamMasuk}</p>
+            <span class="inline-block mt-0.5 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+              att.statusMasuk === 'Tepat Waktu' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+            }">${att.statusMasuk}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // CRUD DATA KARYAWAN
+    function renderAdminEmployees() {
+      const tbody = document.getElementById('adm-employee-table');
+      if (state.employees.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="py-10 text-center text-xs text-slate-400">
+              Belum ada data karyawan. Klik tombol <strong>Tambah Karyawan</strong> untuk membuat akun baru.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = state.employees.map((emp) => `
+        <tr class="hover:bg-slate-50/70 transition-colors">
+          <td class="py-3.5 px-4 font-mono text-xs font-bold text-blue-600">${emp.nip}</td>
+          <td class="py-3.5 px-4 font-semibold text-slate-900">${emp.nama}</td>
+          <td class="py-3.5 px-4 text-xs text-slate-600">${emp.jabatan}</td>
+          <td class="py-3.5 px-4 font-mono text-xs text-slate-500">${emp.password}</td>
+          <td class="py-3.5 px-4">
+            <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${
+              emp.statusAktif !== false ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500'
+            }">${emp.statusAktif !== false ? 'Aktif' : 'Nonaktif'}</span>
+          </td>
+          <td class="py-3.5 px-4 text-right space-x-1.5 whitespace-nowrap">
+            <button onclick="openEmployeeFormModal('${emp.id}')" class="px-2.5 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold">
+              Edit
+            </button>
+            <button onclick="confirmDeleteEmployee('${emp.id}', '${emp.nama}')" class="px-2.5 py-1.5 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-600 text-xs font-semibold">
+              Hapus
+            </button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    window.openEmployeeFormModal = function (empId = null) {
+      const existing = empId ? state.employees.find((e) => e.id === empId) : null;
+      openModal(`
+        <div class="p-6">
+          <div class="flex items-center justify-between pb-4 border-b border-slate-100">
+            <h3 class="text-base font-bold text-slate-900">${existing ? 'Edit Data Karyawan' : 'Tambah Karyawan Baru'}</h3>
+            <button onclick="closeModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <form onsubmit="saveEmployeeForm(event, '${empId || ''}')" class="mt-4 space-y-4">
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">ID Karyawan / NIP (Username Login)</label>
+              <input type="text" id="emp-form-nip" required value="${existing ? existing.nip : ''}" placeholder="Contoh: EMP003" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Nama Lengkap</label>
+              <input type="text" id="emp-form-nama" required value="${existing ? existing.nama : ''}" placeholder="Contoh: Andi Wijaya" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Jabatan / Divisi</label>
+              <input type="text" id="emp-form-jabatan" required value="${existing ? existing.jabatan : ''}" placeholder="Contoh: Staff Marketing" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-bold text-slate-700 mb-1">Password Login</label>
+              <input type="text" id="emp-form-password" required value="${existing ? existing.password : ''}" placeholder="Buat password karyawan" class="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+            <div class="flex items-center gap-2 pt-1">
+              <input type="checkbox" id="emp-form-aktif" ${!existing || existing.statusAktif !== false ? 'checked' : ''} class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500" />
+              <label for="emp-form-aktif" class="text-xs font-semibold text-slate-700">Status Akun Aktif (Dapat Login &amp; Absen)</label>
+            </div>
+            <div class="pt-3 flex items-center justify-end gap-2">
+              <button type="button" onclick="closeModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">Batal</button>
+              <button type="submit" class="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold shadow-sm">Simpan Data</button>
+            </div>
+          </form>
+        </div>
+      `);
+    };
+
+    window.saveEmployeeForm = async function (e, empId) {
+      e.preventDefault();
+      const nip = document.getElementById('emp-form-nip').value.trim();
+      const nama = document.getElementById('emp-form-nama').value.trim();
+      const jabatan = document.getElementById('emp-form-jabatan').value.trim();
+      const password = document.getElementById('emp-form-password').value.trim();
+      const statusAktif = document.getElementById('emp-form-aktif').checked;
+
+      // Validasi duplikasi NIP
+      const duplicate = state.employees.find(
+        (item) => item.nip.toLowerCase() === nip.toLowerCase() && item.id !== empId
+      );
+      if (duplicate) {
+        showToast(`NIP ${nip} sudah digunakan oleh karyawan lain.`, 'error');
+        return;
+      }
+
+      const payload = { nip, nama, jabatan, password, statusAktif };
+
+      try {
+        if (IS_PREVIEW) {
+          if (empId) {
+            const idx = state.employees.findIndex((item) => item.id === empId);
+            if (idx !== -1) state.employees[idx] = { ...state.employees[idx], ...payload };
+          } else {
+            state.employees.push({ id: 'emp-' + Date.now(), ...payload });
+          }
+          renderAdminEmployees();
+          renderAdminDashboard();
+        } else {
+          if (empId) {
+            await updateDoc(doc(db, 'karyawan', empId), payload);
+          } else {
+            await addDoc(collection(db, 'karyawan'), {
+              ...payload,
+              createdAt: serverTimestamp()
+            });
+          }
+        }
+        closeModal();
+        showToast(empId ? 'Data karyawan diperbarui.' : 'Karyawan baru berhasil ditambahkan.', 'success');
+      } catch (err) {
+        showToast('Gagal menyimpan data karyawan: ' + err.message, 'error');
+      }
+    };
+
+    window.confirmDeleteEmployee = function (empId, empName) {
+      openModal(`
+        <div class="p-6 text-center">
+          <div class="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto mb-3">
+            <i data-lucide="trash-2" class="w-6 h-6"></i>
+          </div>
+          <h3 class="text-base font-bold text-slate-900">Hapus Akun Karyawan?</h3>
+          <p class="text-xs text-slate-500 mt-1">Anda yakin ingin menghapus data <strong>${empName}</strong>? Tindakan ini tidak dapat dibatalkan.</p>
+          <div class="mt-5 flex items-center justify-center gap-2.5">
+            <button onclick="closeModal()" class="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-semibold">Batal</button>
+            <button onclick="executeDeleteEmployee('${empId}')" class="px-4 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-semibold">Ya, Hapus</button>
+          </div>
+        </div>
+      `);
+    };
+
+    window.executeDeleteEmployee = async function (empId) {
+      try {
+        if (IS_PREVIEW) {
+          state.employees = state.employees.filter((e) => e.id !== empId);
+          renderAdminEmployees();
+          renderAdminDashboard();
+        } else {
+          await deleteDoc(doc(db, 'karyawan', empId));
+        }
+        closeModal();
+        showToast('Data karyawan berhasil dihapus.', 'success');
+      } catch (err) {
+        showToast('Gagal menghapus karyawan: ' + err.message, 'error');
+      }
+    };
+
+    // LAPORAN & BUKTI FOTO ABSENSI
+    window.renderAdminReports = function () {
+      const tbody = document.getElementById('adm-report-table');
+      const filterDate = document.getElementById('filter-laporan-date').value;
+
+      const filtered = filterDate
+        ? state.attendances.filter((a) => a.tanggal === filterDate)
+        : state.attendances;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="6" class="py-10 text-center text-xs text-slate-400">
+              Belum ada catatan absensi untuk filter tanggal yang dipilih.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map((att) => `
+        <tr class="hover:bg-slate-50/70 transition-colors">
+          <td class="py-3.5 px-4 text-xs font-semibold text-slate-700 whitespace-nowrap">${formatTanggalIndo(att.tanggal)}</td>
+          <td class="py-3.5 px-4">
+            <p class="text-xs font-bold text-slate-900">${att.nama}</p>
+            <p class="text-[11px] text-slate-400">${att.nip} • ${att.jabatan}</p>
+          </td>
+          <td class="py-3.5 px-4 font-mono text-xs font-bold text-slate-900">${att.jamMasuk || '-'}</td>
+          <td class="py-3.5 px-4">
+            <span class="px-2.5 py-0.5 rounded-full text-[11px] font-semibold ${
+              att.statusMasuk === 'Tepat Waktu' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+            }">${att.statusMasuk}</span>
+          </td>
+          <td class="py-3.5 px-4 font-mono text-xs font-semibold text-slate-700">${att.jamPulang || '-'}</td>
+          <td class="py-3.5 px-4 text-right">
+            <button onclick="viewPhotoProof('${att.id}')" class="px-3 py-1.5 rounded-xl bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs font-semibold inline-flex items-center gap-1.5">
+              <i data-lucide="camera" class="w-3.5 h-3.5"></i> Lihat Foto
+            </button>
+          </td>
+        </tr>
+      `).join('');
+      refreshIcons();
+    };
+
+    window.resetReportDateFilter = function () {
+      document.getElementById('filter-laporan-date').value = '';
+      renderAdminReports();
+    };
+
+    window.viewPhotoProof = function (attId) {
+      const att = state.attendances.find((a) => a.id === attId);
+      if (!att) return;
+
+      openModal(`
+        <div class="p-5 sm:p-6">
+          <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+            <div>
+              <h3 class="text-base font-bold text-slate-900">Bukti Foto Kehadiran</h3>
+              <p class="text-xs text-slate-500">${att.nama} (${att.nip}) • ${formatTanggalIndo(att.tanggal)}</p>
+            </div>
+            <button onclick="closeModal()" class="p-1.5 rounded-lg text-slate-400 hover:text-slate-700">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+          </div>
+
+          <div class="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-slate-700">Foto Check-In</span>
+                <span class="font-mono text-blue-600 font-bold">${att.jamMasuk || '-'}</span>
+              </div>
+              <div class="aspect-[4/3] rounded-2xl bg-slate-100 overflow-hidden border border-slate-200">
+                <img src="${att.fotoMasuk}" alt="Foto Masuk" onerror="this.src='https://placehold.co/320x240/e2e8f0/475569?text=Tidak+Ada+Foto'" class="w-full h-full object-cover" />
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <div class="flex items-center justify-between text-xs">
+                <span class="font-bold text-slate-700">Foto Check-Out</span>
+                <span class="font-mono text-indigo-600 font-bold">${att.jamPulang || 'Belum Pulang'}</span>
+              </div>
+              <div class="aspect-[4/3] rounded-2xl bg-slate-100 overflow-hidden border border-slate-200 flex items-center justify-center">
+                ${att.fotoPulang
+                  ? `<img src="${att.fotoPulang}" alt="Foto Pulang" onerror="this.src='https://placehold.co/320x240/e2e8f0/475569?text=Tidak+Ada+Foto'" class="w-full h-full object-cover" />`
+                  : `<span class="text-xs text-slate-400 font-medium">Belum melakukan absen pulang</span>`
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-5 text-right">
+            <button onclick="closeModal()" class="px-5 py-2.5 rounded-xl bg-slate-900 text-white text-xs font-semibold">Tutup</button>
+          </div>
+        </div>
+      `);
+    };
+
+    // PENGATURAN JAM KERJA
+    window.saveWorkSettings = async function (e) {
+      e.preventDefault();
+      const jamMasukBatas = document.getElementById('setting-jam-masuk').value;
+      const jamPulangStandar = document.getElementById('setting-jam-pulang').value;
+      const btn = document.getElementById('btn-save-settings');
+
+      btn.disabled = true;
+      btn.textContent = 'Menyimpan...';
+
+      try {
+        state.settings = { jamMasukBatas, jamPulangStandar };
+        if (!IS_PREVIEW) {
+          await setDoc(doc(db, 'pengaturan', 'jam_kerja'), {
+            jamMasukBatas,
+            jamPulangStandar,
+            updatedAt: serverTimestamp()
+          }, { merge: true });
+        }
+        showToast('Pengaturan jam kerja berhasil disimpan.', 'success');
+      } catch (err) {
+        showToast('Gagal menyimpan pengaturan: ' + err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Simpan Pengaturan Jam Kerja';
+      }
+    };
+
+    // =========================================================================
+    // LIVE CLOCK UPDATER
+    // =========================================================================
+    function startLiveClocks() {
+      const updateClocks = () => {
+        const nowStr = getNowTime();
+        const heroClock = document.getElementById('hero-live-clock');
+        const empClock = document.getElementById('emp-live-clock');
+        const camStamp = document.getElementById('camera-stamp-preview');
+
+        if (heroClock) heroClock.textContent = nowStr;
+        if (empClock) empClock.textContent = nowStr;
+        if (camStamp) camStamp.textContent = `${getTodayISO()} ${nowStr}`;
+      };
+      updateClocks();
+      setInterval(updateClocks, 1000);
+    }
+
+    // =========================================================================
+    // BOOTSTRAP APLIKASI SAAT HALAMAN DIMUAT
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      renderPreviewIndicators();
+      initHeroInteractions();
+      startLiveClocks();
+      refreshIcons();
+    });
+  </script>
+</body>
+</html>
